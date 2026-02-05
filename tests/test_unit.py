@@ -5,6 +5,7 @@ Run with: pytest tests/test_unit.py -v
 """
 
 import io
+import os
 import pytest
 from unittest.mock import patch, MagicMock
 import subprocess
@@ -132,27 +133,32 @@ class TestVoiceChatbotInit:
             assert chatbot.is_running is True
             chatbot.cleanup()
 
-    def test_init_with_asr_source(self, mock_pyaudio):
-        """Test initialization with ASR source name."""
+    def test_init_with_asr_source(self, mock_pyaudio, capsys):
+        """Test initialization sets PULSE_SOURCE environment variable."""
         with patch.object(lc, 'suppress_alsa_errors'):
             chatbot = lc.VoiceChatbot(asr_source='feishu_output.monitor')
-            assert chatbot.input_device == 1
+            # Verify env var was set
+            assert os.environ.get('PULSE_SOURCE') == 'feishu_output.monitor'
+            captured = capsys.readouterr()
+            assert "PULSE_SOURCE=feishu_output.monitor" in captured.out
             chatbot.cleanup()
 
-    def test_init_with_tts_sink(self, mock_pyaudio):
-        """Test initialization with TTS sink name."""
+    def test_init_with_tts_sink(self, mock_pyaudio, capsys):
+        """Test initialization sets PULSE_SINK environment variable."""
         with patch.object(lc, 'suppress_alsa_errors'):
             chatbot = lc.VoiceChatbot(tts_sink='tts_output')
-            assert chatbot.output_device == 2
+            # Verify env var was set
+            assert os.environ.get('PULSE_SINK') == 'tts_output'
+            captured = capsys.readouterr()
+            assert "PULSE_SINK=tts_output" in captured.out
             chatbot.cleanup()
 
-    def test_init_device_not_found(self, mock_pyaudio, capsys):
-        """Test initialization when device is not found."""
+    def test_init_with_manual_device_index(self, mock_pyaudio):
+        """Test initialization with manual device index override."""
         with patch.object(lc, 'suppress_alsa_errors'):
-            chatbot = lc.VoiceChatbot(asr_source='nonexistent')
-            assert chatbot.input_device is None  # Falls back to default
-            captured = capsys.readouterr()
-            assert "Cannot find PyAudio device" in captured.out
+            chatbot = lc.VoiceChatbot(input_device=5, output_device=8)
+            assert chatbot.input_device == 5
+            assert chatbot.output_device == 8
             chatbot.cleanup()
 
 

@@ -195,29 +195,23 @@ class VoiceChatbot:
     def __init__(self, input_device=None, output_device=None,
                  asr_source=None, tts_sink=None):
         suppress_alsa_errors()
+
+        # Set PulseAudio default devices via environment variables
+        # This is more reliable than searching PyAudio device indices
+        if asr_source:
+            os.environ['PULSE_SOURCE'] = asr_source
+            print(f"✓ ASR input: PULSE_SOURCE={asr_source}")
+        if tts_sink:
+            os.environ['PULSE_SINK'] = tts_sink
+            print(f"✓ TTS output: PULSE_SINK={tts_sink}")
+
         self.audio = pyaudio.PyAudio()
         self.conversation_history = []
         self.is_running = True
 
+        # Keep manual device index override for backward compatibility
         self.input_device = input_device
         self.output_device = output_device
-
-        # Resolve PulseAudio names to PyAudio device indices
-        if asr_source:
-            idx = find_pyaudio_device(self.audio, asr_source, is_input=True)
-            if idx is not None:
-                self.input_device = idx
-                print(f"✓ ASR input: [{idx}] {self.audio.get_device_info_by_index(idx)['name']}")
-            else:
-                print(f"⚠ Cannot find PyAudio device for '{asr_source}', using default")
-
-        if tts_sink:
-            idx = find_pyaudio_device(self.audio, tts_sink, is_input=False)
-            if idx is not None:
-                self.output_device = idx
-                print(f"✓ TTS output: [{idx}] {self.audio.get_device_info_by_index(idx)['name']}")
-            else:
-                print(f"⚠ Cannot find PyAudio device for '{tts_sink}', using default")
 
     def record_audio(self) -> bytes:
         """Record audio until silence is detected.
